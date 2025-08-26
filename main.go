@@ -24,6 +24,11 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// Configuration is now stored in two files:
+// - yt-dlp-simpgo.ini : only program settings (section [app], key output_dir)
+// - yt-dlp.conf       : the yt-dlp configuration (full file, not embedded into ini)
+// Defaults are embedded in default_conf.go as defaultYTDLPConf and defaultIniConf.
+
 func main() {
 	a := app.New()
 	w := a.NewWindow("视频下载工具")
@@ -34,8 +39,10 @@ func main() {
 	entry.SetPlaceHolder("在此输入视频网址，例如：https://...")
 
 	// output directory (default ./下载)
-	outputDir := filepath.Join(".", "下载")
-	_ = os.MkdirAll(outputDir, 0755)
+	iniPath := IniFileName
+	defaultOut := filepath.Join(".", "下载")
+	// Ensure default files exist and obtain effective outputDir
+	outputDir, _ := EnsureDefaults(iniPath, defaultOut)
 	outputBinding := binding.NewString()
 	_ = outputBinding.Set(outputDir)
 	// create a small container to hold the clickable output link
@@ -52,6 +59,8 @@ func main() {
 			outputDir = p
 			_ = os.MkdirAll(outputDir, 0755)
 			_ = outputBinding.Set(outputDir)
+			// save config with new outputDir (yt-dlp.conf is kept as a separate file)
+			_ = SaveConfig(iniPath, outputDir)
 		}, w)
 	})
 
