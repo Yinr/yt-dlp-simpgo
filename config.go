@@ -57,7 +57,7 @@ func EnsureDefaults(iniPath, defaultOutputDir string) (outputDir string, err err
 	// If yt-dlp.conf doesn't exist, write embedded default
 	if _, st := os.Stat(YTDLPConfName); os.IsNotExist(st) {
 		if defaultYTDLPConf != "" {
-			if werr := os.WriteFile(YTDLPConfName, []byte(defaultYTDLPConf), 0644); werr != nil {
+			if werr := writeUTF8BOMFile(YTDLPConfName, defaultYTDLPConf, 0644); werr != nil {
 				return outputDir, werr
 			}
 		}
@@ -96,4 +96,11 @@ func EnsureDefaults(iniPath, defaultOutputDir string) (outputDir string, err err
 	}
 
 	return outputDir, nil
+}
+
+// writeUTF8BOMFile writes a string to path with a UTF-8 BOM prefix.
+func writeUTF8BOMFile(path, content string, perm os.FileMode) error {
+	bom := []byte{0xEF, 0xBB, 0xBF}
+	data := append(bom, []byte(content)...)
+	return os.WriteFile(path, data, perm)
 }
