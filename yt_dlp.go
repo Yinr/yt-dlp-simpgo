@@ -22,7 +22,7 @@ import (
 // instead of the default GitHub URL.
 func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL string, onProgress func(received, total int64)) (string, error) {
 	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return "", err
+		return "", fmt.Errorf("无法创建目录: %w", err)
 	}
 	exeName := "yt-dlp"
 	urlStr := "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
@@ -47,18 +47,24 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 
 	resp, err := client.Get(urlStr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("下载请求失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Just log the error since we can't return it
+			fmt.Printf("警告: 无法关闭响应体: %v\n", closeErr)
+		}
+	}()
+
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("download failed: %s", resp.Status)
+		return "", fmt.Errorf("下载失败: %s", resp.Status)
 	}
 
 	total := resp.ContentLength
 	tmp := outPath + ".tmp"
 	f, err := os.Create(tmp)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("无法创建临时文件: %w", err)
 	}
 	defer f.Close()
 
@@ -71,7 +77,7 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 			wn, werr := f.Write(buf[:n])
 			if werr != nil {
 				_ = os.Remove(tmp)
-				return "", werr
+				return "", fmt.Errorf("写入文件失败: %w", werr)
 			}
 			written += int64(wn)
 			if onProgress != nil {
@@ -83,14 +89,14 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 				break
 			}
 			_ = os.Remove(tmp)
-			return "", rerr
+			return "", fmt.Errorf("读取响应失败: %w", rerr)
 		}
 	}
 
 	// make sure file is closed before renaming on Windows (prevents "file in use")
 	if err := f.Close(); err != nil {
 		_ = os.Remove(tmp)
-		return "", err
+		return "", fmt.Errorf("关闭文件失败: %w", err)
 	}
 
 	// Try to rename tmp -> outPath, with retries. On Windows this can fail
@@ -116,12 +122,12 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 	if renameErr != nil {
 		// final cleanup: try to remove tmp to avoid leaving partial file
 		_ = os.Remove(tmp)
-		return "", renameErr
+		return "", fmt.Errorf("重命名文件失败: %w", renameErr)
 	}
 
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(outPath, 0755); err != nil {
-			return outPath, err
+			return outPath, fmt.Errorf("设置文件权限失败: %w", err)
 		}
 	}
 	return outPath, nil
@@ -148,5 +154,8 @@ func UpdateYtDlp(exePath string, downloadProxy string) (string, error) {
 		cmd.Env = env
 	}
 	out, err := cmd.CombinedOutput()
-	return string(out), err
+	if err != nil {
+		return string(out), fmt.Errorf("更新失败: %w", err)
+	}
+	return string(out), nil
 }

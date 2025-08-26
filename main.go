@@ -81,18 +81,37 @@ func main() {
 		if !filepath.IsAbs(actualPath) {
 			actualPath = filepath.Join(exeDir, actualPath)
 		}
-		_ = os.MkdirAll(actualPath, 0755)
-		_ = outputBinding.Set(outputDir)
+		if err := os.MkdirAll(actualPath, 0755); err != nil {
+			dialog.ShowError(fmt.Errorf("无法创建目录: %v", err), w)
+			return
+		}
+		if err := outputBinding.Set(outputDir); err != nil {
+			dialog.ShowError(fmt.Errorf("无法设置输出目录: %v", err), w)
+			return
+		}
 		// save config with new outputDir (yt-dlp.conf is kept as a separate file)
-		_ = SaveConfig(iniPath, outputDir, downloadProxy, ytDlpURL)
+		if err := SaveConfig(iniPath, outputDir, downloadProxy, ytDlpURL); err != nil {
+			dialog.ShowError(fmt.Errorf("无法保存配置: %v", err), w)
+			return
+		}
 	})
 
 	// helper to open folder (platform-specific)
 	openFolder := func(path string, fileURL *url.URL) {
 		if runtime.GOOS == "windows" {
-			_ = exec.Command("explorer", path).Start()
+			if err := exec.Command("explorer", path).Start(); err != nil {
+				fyne.CurrentApp().SendNotification(&fyne.Notification{
+					Title:   "错误",
+					Content: fmt.Sprintf("无法打开文件夹: %v", err),
+				})
+			}
 		} else if fileURL != nil {
-			_ = fyne.CurrentApp().OpenURL(fileURL)
+			if err := fyne.CurrentApp().OpenURL(fileURL); err != nil {
+				fyne.CurrentApp().SendNotification(&fyne.Notification{
+					Title:   "错误",
+					Content: fmt.Sprintf("无法打开URL: %v", err),
+				})
+			}
 		}
 	}
 
@@ -148,16 +167,34 @@ func main() {
 		logScroll.ScrollToBottom()
 	}))
 
-	appendLog := func(text string) {
+	addLog := func(text string, rewriteLast bool) {
 		// append via binding (get current, set new)
 		go func() {
-			cur, _ := logBinding.Get()
+			cur, err := logBinding.Get()
+			if err != nil {
+				return
+			}
 			if cur == "" {
 				_ = logBinding.Set(text)
 			} else {
-				_ = logBinding.Set(cur + "\n" + text)
+				if rewriteLast {
+					curLastWrap := strings.LastIndex(cur, "\n")
+					if curLastWrap == -1 {
+						curLastWrap = 0
+					}
+					curWithoutLastLine := cur[:curLastWrap]
+					_ = logBinding.Set(curWithoutLastLine + "\n" + text)
+				} else {
+					_ = logBinding.Set(cur + "\n" + text)
+				}
 			}
 		}()
+	}
+	appendLog := func(text string) {
+		addLog(text, false)
+	}
+	rewriteLog := func(text string) {
+		addLog(text, true)
 	}
 
 	// download action will be set based on whether yt-dlp exists
@@ -213,8 +250,25 @@ func main() {
 				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 			}
 
-			stdout, _ := cmd.StdoutPipe()
-			stderr, _ := cmd.StderrPipe()
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "下载失败", Content: err.Error()})
+				appendLog("获取标准输出管道失败: " + err.Error())
+				runningMu.Lock()
+				running = false
+				runningMu.Unlock()
+				return
+			}
+
+			stderr, err := cmd.StderrPipe()
+			if err != nil {
+				fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "下载失败", Content: err.Error()})
+				appendLog("获取错误输出管道失败: " + err.Error())
+				runningMu.Lock()
+				running = false
+				runningMu.Unlock()
+				return
+			}
 
 			if err := cmd.Start(); err != nil {
 				// send a notification and log the error
@@ -238,9 +292,9 @@ func main() {
 						out := line
 						// if bytes are not valid UTF-8 on Windows, try decode from GB18030/GBK
 						if runtime.GOOS == "windows" && !utf8.Valid(line) {
-							if dec, _, derr := transform.Bytes(simplifiedchinese.GB18030.NewDecoder(), line); derr == nil {
+							if dec, _, derr := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), line); derr == nil {
 								out = dec
-							} else if dec2, _, derr2 := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), line); derr2 == nil {
+							} else if dec2, _, derr2 := transform.Bytes(simplifiedchinese.GB18030.NewDecoder(), line); derr2 == nil {
 								out = dec2
 							}
 						}
@@ -264,7 +318,7 @@ func main() {
 
 			wg.Wait()
 
-			err := cmd.Wait()
+			err = cmd.Wait()
 			if err != nil {
 				fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "下载失败", Content: err.Error()})
 				appendLog("下载失败: " + err.Error())
@@ -290,7 +344,9 @@ func main() {
 				if err != nil {
 					appendLog("更新失败: " + err.Error())
 					appendLog(out)
-					dialog.ShowError(err, w)
+					fyne.Do(func() {
+						dialog.ShowError(err, w)
+					})
 					return
 				}
 				appendLog("更新完成")
@@ -304,35 +360,43 @@ func main() {
 		downloadBtn.OnTapped = func() {
 			// download into exeDir
 			appendLog("正在下载 yt-dlp 到: " + exeDir)
+			appendLog("")
 			go func() {
 				// progress callback: log percent when possible, otherwise bytes
-				lastPct := -1
-				lastBytes := int64(0)
+				var lastProgress string
+				var lastPct int = -1
 				onProgress := func(received, total int64) {
+					var progress string
+					var pct int
 					if total > 0 {
-						pct := int(float64(received) * 100.0 / float64(total))
-						if pct != lastPct {
-							lastPct = pct
-							appendLog(fmt.Sprintf("下载 yt-dlp: %d%% (%d/%d)", pct, received, total))
-						}
+						pct = int(float64(received) * 100.0 / float64(total))
+						progress = fmt.Sprintf("下载 yt-dlp: %d%% (%d/%d)", pct, received, total)
 					} else {
 						// log every ~64KB
-						if received-lastBytes >= 64*1024 {
-							lastBytes = received
-							appendLog(fmt.Sprintf("下载 yt-dlp: %d bytes", received))
-						}
+						progress = fmt.Sprintf("下载 yt-dlp: %d bytes", received)
+					}
+
+					// Only update if progress message has changed
+					if (pct != lastPct) && (progress != lastProgress) {
+						lastPct = pct
+						lastProgress = progress
+						fyne.Do(func() {
+							rewriteLog(progress)
+						})
 					}
 				}
 
 				p, derr := DownloadYtDlpWithProgress(exeDir, downloadProxy, ytDlpURL, onProgress)
 				if derr != nil {
-					appendLog("下载 yt-dlp 失败: " + derr.Error())
-					dialog.ShowError(derr, w)
+					fyne.Do(func() {
+						appendLog("下载 yt-dlp 失败: " + derr.Error())
+						dialog.ShowError(derr, w)
+					})
 					return
 				}
-				appendLog("已下载: " + p)
-				// after download, switch button to start download behavior and enable update
 				fyne.Do(func() {
+					appendLog("已下载: " + p)
+					// after download, switch button to start download behavior and enable update
 					fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已下载"})
 					downloadBtn.SetText("开始下载")
 					downloadBtn.OnTapped = func() { startDownload(p) }
@@ -344,7 +408,9 @@ func main() {
 							if err != nil {
 								appendLog("更新失败: " + err.Error())
 								appendLog(out)
-								dialog.ShowError(err, w)
+								fyne.Do(func() {
+									dialog.ShowError(err, w)
+								})
 								return
 							}
 							appendLog("更新完成")
