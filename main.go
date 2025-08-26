@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -138,6 +139,7 @@ func main() {
 		entry.SetText("")
 	})
 
+	updateBtn := widget.NewButton("更新 yt-dlp", nil)
 	downloadBtn := widget.NewButton("开始下载", nil)
 
 	// thread-safe running flag to prevent re-entrancy
@@ -163,22 +165,28 @@ func main() {
 		}()
 	}
 
-	// download action
-	downloadBtn.OnTapped = func() {
-		url := strings.TrimSpace(entry.Text)
-		if url == "" {
-			dialog.ShowInformation("提示", "请输入一个有效的网址", w)
-			return
-		}
-
-		// find yt-dlp executable in current directory
+	// download action will be set based on whether yt-dlp exists
+	// helper to check for yt-dlp existence in exe dir or PATH
+	findYtDlp := func() (string, bool) {
 		exeName := "yt-dlp"
 		if runtime.GOOS == "windows" {
 			exeName = "yt-dlp.exe"
 		}
-		exePath, _ := filepath.Abs(exeName)
-		if _, err := os.Stat(exePath); os.IsNotExist(err) {
-			dialog.ShowError(err, w)
+		// check exe dir
+		if p := filepath.Join(exeDir, exeName); func() bool { _, e := os.Stat(p); return e == nil }() {
+			return p, true
+		}
+		// check PATH
+		if pathP, err := exec.LookPath(exeName); err == nil {
+			return pathP, true
+		}
+		return "", false
+	}
+
+	startDownload := func(exePath string) {
+		url := strings.TrimSpace(entry.Text)
+		if url == "" {
+			dialog.ShowInformation("提示", "请输入一个有效的网址", w)
 			return
 		}
 
@@ -194,9 +202,14 @@ func main() {
 		appendLog("开始下载： " + url)
 
 		go func() {
+			// resolve outputDir to absolute path (relative paths are relative to exeDir)
+			actualOut := outputDir
+			if !filepath.IsAbs(actualOut) {
+				actualOut = filepath.Join(exeDir, actualOut)
+			}
 			// pass -o to yt-dlp to set output directory and filename template
-			outTemplate := filepath.Join(outputDir, "%(title)s.%(ext)s")
-			appendLog("使用输出目录: " + outputDir)
+			outTemplate := filepath.Join(actualOut, "%(title)s.%(ext)s")
+			appendLog("使用输出目录: " + actualOut)
 			cmd := exec.Command(exePath, "-o", outTemplate, url)
 			cmd.Dir = filepath.Dir(exePath)
 
@@ -270,10 +283,87 @@ func main() {
 		}()
 	}
 
+	// decide initial button behavior based on availability of yt-dlp
+	if exePath, ok := findYtDlp(); ok {
+		downloadBtn.SetText("开始下载")
+		downloadBtn.OnTapped = func() { startDownload(exePath) }
+		// wire update button
+		updateBtn.OnTapped = func() {
+			appendLog("正在更新 yt-dlp: " + exePath)
+			go func() {
+				out, err := UpdateYtDlp(exePath)
+				if err != nil {
+					appendLog("更新失败: " + err.Error())
+					appendLog(out)
+					dialog.ShowError(err, w)
+					return
+				}
+				appendLog("更新完成")
+				appendLog(out)
+				fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已更新"})
+			}()
+		}
+	} else {
+		updateBtn.Disable()
+		downloadBtn.SetText("下载 yt-dlp")
+		downloadBtn.OnTapped = func() {
+			// download into exeDir
+			appendLog("正在下载 yt-dlp 到: " + exeDir)
+			go func() {
+				// progress callback: log percent when possible, otherwise bytes
+				lastPct := -1
+				lastBytes := int64(0)
+				onProgress := func(received, total int64) {
+					if total > 0 {
+						pct := int(float64(received) * 100.0 / float64(total))
+						if pct != lastPct {
+							lastPct = pct
+							appendLog(fmt.Sprintf("下载 yt-dlp: %d%% (%d/%d)", pct, received, total))
+						}
+					} else {
+						// log every ~64KB
+						if received-lastBytes >= 64*1024 {
+							lastBytes = received
+							appendLog(fmt.Sprintf("下载 yt-dlp: %d bytes", received))
+						}
+					}
+				}
+
+				p, derr := DownloadYtDlpWithProgress(exeDir, onProgress)
+				if derr != nil {
+					appendLog("下载 yt-dlp 失败: " + derr.Error())
+					dialog.ShowError(derr, w)
+					return
+				}
+				appendLog("已下载: " + p)
+				// after download, switch button to start download behavior and enable update
+				fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已下载"})
+				downloadBtn.SetText("开始下载")
+				downloadBtn.OnTapped = func() { startDownload(p) }
+				updateBtn.Enable()
+				updateBtn.OnTapped = func() {
+					appendLog("正在更新 yt-dlp: " + p)
+					go func() {
+						out, err := UpdateYtDlp(p)
+						if err != nil {
+							appendLog("更新失败: " + err.Error())
+							appendLog(out)
+							dialog.ShowError(err, w)
+							return
+						}
+						appendLog("更新完成")
+						appendLog(out)
+						fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已更新"})
+					}()
+				}
+			}()
+		}
+	}
+
 	// layout: top area contains an entry row (entry expands, clear button fixed at right)
 	// use Border layout so entry fills remaining width and clearBtn stays on the right
 	entryRow := container.NewBorder(nil, nil, nil, clearBtn, entry)
-	buttons := container.NewHBox(setOutputBtn, widget.NewLabel("下载目录:"), linkContainer, layout.NewSpacer(), downloadBtn)
+	buttons := container.NewHBox(setOutputBtn, widget.NewLabel("下载目录:"), linkContainer, layout.NewSpacer(), updateBtn, downloadBtn)
 	top := container.NewVBox(entryRow, buttons)
 	content := container.NewBorder(top, nil, nil, nil, logScroll)
 	w.SetContent(container.NewPadded(content))
