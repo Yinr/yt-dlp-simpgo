@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
@@ -25,6 +24,8 @@ import (
 	nativeDialog "github.com/sqweek/dialog"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+
+	"yinr.cc/yt-dlp-simpgo/utils"
 )
 
 func main() {
@@ -258,13 +259,8 @@ func main() {
 			// pass -o to yt-dlp to set output directory and filename template
 			outTemplate := filepath.Join(actualOut, "%(title)s.%(ext)s")
 			appendLog("使用输出目录: " + actualOut)
-			cmd := exec.Command(exePath, "-o", outTemplate, url)
+			cmd, _ := utils.ExecCmd(exePath, "-o", outTemplate, url)
 			cmd.Dir = filepath.Dir(exePath)
-
-			// hide console window on Windows (affects child process window)
-			if runtime.GOOS == "windows" {
-				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-			}
 
 			stdout, err := cmd.StdoutPipe()
 			if err != nil {

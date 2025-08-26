@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -25,24 +23,23 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
+          sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libgtk-3-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev pkg-config libxxf86vm-dev gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+
 
       - name: Build binaries
         run: |
           mkdir -p dist
           # Windows
-          GOOS=windows GOARCH=amd64 go build -o dist/yt-dlp-simpgo-windows-amd64.exe -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w -H=windowsgui"
+          CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o dist/yt-dlp-simpgo-windows-amd64.exe -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w -H=windowsgui"
           # Linux
           GOOS=linux GOARCH=amd64 go build -o dist/yt-dlp-simpgo-linux-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
           # macOS Intel
-          GOOS=darwin GOARCH=amd64 go build -o dist/yt-dlp-simpgo-darwin-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
+          # GOOS=darwin GOARCH=amd64 go build -o dist/yt-dlp-simpgo-darwin-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
           # macOS Apple Silicon
-          GOOS=darwin GOARCH=arm64 go build -o dist/yt-dlp-simpgo-darwin-arm64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
+          # GOOS=darwin GOARCH=arm64 go build -o dist/yt-dlp-simpgo-darwin-arm64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

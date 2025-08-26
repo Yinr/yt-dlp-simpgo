@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
+
+	"yinr.cc/yt-dlp-simpgo/utils"
 )
 
 // DownloadYtDlp downloads the yt-dlp binary into destDir and returns the saved path.
@@ -141,10 +141,8 @@ func DownloadYtDlp(destDir string) (string, error) {
 // UpdateYtDlp runs the existing yt-dlp executable with --update and returns its combined output.
 // If downloadProxy is provided it will be injected into the command environment as HTTP_PROXY/HTTPS_PROXY.
 func UpdateYtDlp(exePath string, downloadProxy string) (string, error) {
-	cmd := exec.Command(exePath, "--update")
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	}
+	cmd, _ := utils.ExecCmd(exePath, "--update")
+
 	if downloadProxy != "" {
 		env := os.Environ()
 		env = append(env, "HTTP_PROXY="+downloadProxy)
