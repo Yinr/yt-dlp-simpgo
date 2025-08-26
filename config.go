@@ -28,6 +28,9 @@ var defaultYTDLPConf string
 //go:embed res/yt-dlp-simpgo.ini
 var defaultIniConf string
 
+//go:embed res/icon.png
+var iconData []byte
+
 // LoadConfig loads program settings from the ini file.
 // It returns outputDir, downloadProxy, ytDlpURL and an error if occurred.
 func LoadConfig(path string) (outputDir string, downloadProxy string, ytDlpURL string, err error) {

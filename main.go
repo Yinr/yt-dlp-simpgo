@@ -1,3 +1,4 @@
+//go:generate goversioninfo -icon=res/icon.ico -manifest=res/yt-dlp-simpgo.exe.manifest -gofile=res/versioninfo.json
 package main
 
 import (
@@ -37,7 +38,11 @@ func main() {
 
 	// create app with a stable unique ID so Preferences API works without error
 	a := app.NewWithID("yinr.cc.yt-dlp-simpgo")
-	w := a.NewWindow("视频下载工具")
+	a.SetIcon(&fyne.StaticResource{
+		StaticName:    "icon.png",
+		StaticContent: iconData,
+	})
+	w := a.NewWindow("视频下载工具 " + Version)
 	w.Resize(fyne.NewSize(720, 420))
 
 	// URL entry (single-line but taller for easier editing)
@@ -159,6 +164,17 @@ func main() {
 	// thread-safe running flag to prevent re-entrancy
 	var runningMu sync.Mutex
 	running := false
+
+	// About button
+	aboutBtn := widget.NewButton("关于", func() {
+		content := widget.NewLabel(fmt.Sprintf("yt-dlp-simpgo %s\n\n"+
+			"一个基于 yt-dlp 的简单图形界面下载工具\n\n"+
+			"项目地址: "+Repository, Version))
+		content.Wrapping = fyne.TextWrapWord
+		scroll := container.NewScroll(content)
+		scroll.SetMinSize(fyne.NewSize(400, 200))
+		dialog.ShowCustom("关于", "关闭", scroll, w)
+	})
 
 	// helper to append to log on main thread
 	// add a listener so when binding changes we auto-scroll; binding listeners
@@ -426,7 +442,7 @@ func main() {
 	// layout: top area contains an entry row (entry expands, clear button fixed at right)
 	// use Border layout so entry fills remaining width and clearBtn stays on the right
 	entryRow := container.NewBorder(nil, nil, nil, clearBtn, entry)
-	buttons := container.NewHBox(setOutputBtn, widget.NewLabel("下载目录:"), linkContainer, layout.NewSpacer(), updateBtn, downloadBtn)
+	buttons := container.NewHBox(setOutputBtn, widget.NewLabel("下载目录:"), linkContainer, layout.NewSpacer(), updateBtn, downloadBtn, aboutBtn)
 	top := container.NewVBox(entryRow, buttons)
 	content := container.NewBorder(top, nil, nil, nil, logScroll)
 	w.SetContent(container.NewPadded(content))
