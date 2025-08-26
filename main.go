@@ -20,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	nativeDialog "github.com/sqweek/dialog"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -30,7 +31,16 @@ import (
 // Defaults are embedded in default_conf.go as defaultYTDLPConf and defaultIniConf.
 
 func main() {
-	a := app.New()
+	// ensure current working directory is the executable directory to make
+	// relative paths and dialogs behave predictably when double-clicking the exe.
+	if exePath, err := os.Executable(); err == nil {
+		if exeDir := filepath.Dir(exePath); exeDir != "" {
+			_ = os.Chdir(exeDir) // best-effort, ignore error
+		}
+	}
+
+	// create app with a stable unique ID so Preferences API works without error
+	a := app.NewWithID("yinr.cc.yt-dlp-simpgo")
 	w := a.NewWindow("视频下载工具")
 	w.Resize(fyne.NewSize(720, 420))
 
@@ -43,25 +53,42 @@ func main() {
 	defaultOut := filepath.Join(".", "下载")
 	// Ensure default files exist and obtain effective outputDir
 	outputDir, _ := EnsureDefaults(iniPath, defaultOut)
+	// after chdir above, the program directory is the current working directory
+	exeDir, _ := os.Getwd()
 	outputBinding := binding.NewString()
 	_ = outputBinding.Set(outputDir)
 	// create a small container to hold the clickable output link
 	linkContainer := container.NewHBox()
 	setOutputBtn := widget.NewButton("设置下载目录", func() {
-		dialog.ShowFolderOpen(func(li fyne.ListableURI, err error) {
-			if err != nil || li == nil {
-				return
-			}
-			p := li.Path()
-			if p == "" {
-				return
-			}
+		// determine starting directory: resolve configured outputDir (may be relative)
+		startDir := outputDir
+		if !filepath.IsAbs(startDir) {
+			startDir = filepath.Join(exeDir, startDir)
+		}
+		// open native folder chooser with start directory
+		p, err := nativeDialog.Directory().Title("选择下载目录").SetStartDir(startDir).Browse()
+		if err != nil {
+			// user cancelled or error; do nothing
+			return
+		}
+		if p == "" {
+			return
+		}
+		// if selected path is a subpath of the executable dir, store relative path
+		if rel, rerr := filepath.Rel(exeDir, p); rerr == nil && !strings.HasPrefix(rel, "..") {
+			outputDir = rel
+		} else {
 			outputDir = p
-			_ = os.MkdirAll(outputDir, 0755)
-			_ = outputBinding.Set(outputDir)
-			// save config with new outputDir (yt-dlp.conf is kept as a separate file)
-			_ = SaveConfig(iniPath, outputDir)
-		}, w)
+		}
+		// make sure the actual directory exists (resolve relative against exeDir)
+		actualPath := outputDir
+		if !filepath.IsAbs(actualPath) {
+			actualPath = filepath.Join(exeDir, actualPath)
+		}
+		_ = os.MkdirAll(actualPath, 0755)
+		_ = outputBinding.Set(outputDir)
+		// save config with new outputDir (yt-dlp.conf is kept as a separate file)
+		_ = SaveConfig(iniPath, outputDir)
 	})
 
 	// helper to open folder (platform-specific)
