@@ -26,11 +26,6 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// Configuration is now stored in two files:
-// - yt-dlp-simpgo.ini : only program settings (section [app], key output_dir)
-// - yt-dlp.conf       : the yt-dlp configuration (full file, not embedded into ini)
-// Defaults are embedded in default_conf.go as defaultYTDLPConf and defaultIniConf.
-
 func main() {
 	// ensure current working directory is the executable directory to make
 	// relative paths and dialogs behave predictably when double-clicking the exe.
@@ -52,8 +47,8 @@ func main() {
 	// output directory (default ./下载)
 	iniPath := IniFileName
 	defaultOut := filepath.Join(".", "下载")
-	// Ensure default files exist and obtain effective outputDir
-	outputDir, _ := EnsureDefaults(iniPath, defaultOut)
+	// Ensure default files exist and obtain effective outputDir, proxy and yt-dlp url
+	outputDir, downloadProxy, ytDlpURL, _ := EnsureDefaults(iniPath, defaultOut)
 	// after chdir above, the program directory is the current working directory
 	exeDir, _ := os.Getwd()
 	outputBinding := binding.NewString()
@@ -89,7 +84,7 @@ func main() {
 		_ = os.MkdirAll(actualPath, 0755)
 		_ = outputBinding.Set(outputDir)
 		// save config with new outputDir (yt-dlp.conf is kept as a separate file)
-		_ = SaveConfig(iniPath, outputDir)
+		_ = SaveConfig(iniPath, outputDir, downloadProxy, ytDlpURL)
 	})
 
 	// helper to open folder (platform-specific)
@@ -291,7 +286,7 @@ func main() {
 		updateBtn.OnTapped = func() {
 			appendLog("正在更新 yt-dlp: " + exePath)
 			go func() {
-				out, err := UpdateYtDlp(exePath)
+				out, err := UpdateYtDlp(exePath, downloadProxy)
 				if err != nil {
 					appendLog("更新失败: " + err.Error())
 					appendLog(out)
@@ -329,7 +324,7 @@ func main() {
 					}
 				}
 
-				p, derr := DownloadYtDlpWithProgress(exeDir, onProgress)
+				p, derr := DownloadYtDlpWithProgress(exeDir, downloadProxy, ytDlpURL, onProgress)
 				if derr != nil {
 					appendLog("下载 yt-dlp 失败: " + derr.Error())
 					dialog.ShowError(derr, w)
@@ -337,25 +332,27 @@ func main() {
 				}
 				appendLog("已下载: " + p)
 				// after download, switch button to start download behavior and enable update
-				fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已下载"})
-				downloadBtn.SetText("开始下载")
-				downloadBtn.OnTapped = func() { startDownload(p) }
-				updateBtn.Enable()
-				updateBtn.OnTapped = func() {
-					appendLog("正在更新 yt-dlp: " + p)
-					go func() {
-						out, err := UpdateYtDlp(p)
-						if err != nil {
-							appendLog("更新失败: " + err.Error())
+				fyne.Do(func() {
+					fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已下载"})
+					downloadBtn.SetText("开始下载")
+					downloadBtn.OnTapped = func() { startDownload(p) }
+					updateBtn.Enable()
+					updateBtn.OnTapped = func() {
+						appendLog("正在更新 yt-dlp: " + p)
+						go func() {
+							out, err := UpdateYtDlp(p, downloadProxy)
+							if err != nil {
+								appendLog("更新失败: " + err.Error())
+								appendLog(out)
+								dialog.ShowError(err, w)
+								return
+							}
+							appendLog("更新完成")
 							appendLog(out)
-							dialog.ShowError(err, w)
-							return
-						}
-						appendLog("更新完成")
-						appendLog(out)
-						fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已更新"})
-					}()
-				}
+							fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已更新"})
+						}()
+					}
+				})
 			}()
 		}
 	}
