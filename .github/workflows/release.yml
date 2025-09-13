@@ -8,7 +8,7 @@ on:
 jobs:
   release:
     env:
-      EXECUTABLE: yt-dlp-simpgo.exe
+      EXECUTABLE: yt-dlp-simpgo
 
     runs-on: ubuntu-latest
     steps:
@@ -42,6 +42,7 @@ jobs:
 
       - name: Create release
         uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
         with:
           files: |
             dist/*
