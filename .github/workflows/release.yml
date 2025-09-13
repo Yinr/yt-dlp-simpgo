@@ -4,10 +4,12 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   release:
+    env:
+      EXECUTABLE: yt-dlp-simpgo.exe
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,13 +32,13 @@ jobs:
         run: |
           mkdir -p dist
           # Windows
-          CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o dist/yt-dlp-simpgo-windows-amd64.exe -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w -H=windowsgui"
+          GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 go build -o dist/${{ env.EXECUTABLE }}-windows-amd64.exe -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w -H=windowsgui"
           # Linux
-          GOOS=linux GOARCH=amd64 go build -o dist/yt-dlp-simpgo-linux-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
+          GOOS=linux GOARCH=amd64 go build -o dist/${{ env.EXECUTABLE }}-linux-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
           # macOS Intel
-          # GOOS=darwin GOARCH=amd64 go build -o dist/yt-dlp-simpgo-darwin-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
+          # GOOS=darwin GOARCH=amd64 go build -o dist/${{ env.EXECUTABLE }}-darwin-amd64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
           # macOS Apple Silicon
-          # GOOS=darwin GOARCH=arm64 go build -o dist/yt-dlp-simpgo-darwin-arm64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
+          # GOOS=darwin GOARCH=arm64 go build -o dist/${{ env.EXECUTABLE }}-darwin-arm64 -ldflags "-X 'main.Version=${{ steps.tag.outputs.tag }}' -s -w"
 
       - name: Create release
         uses: softprops/action-gh-release@v2
