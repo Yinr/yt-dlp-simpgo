@@ -22,15 +22,21 @@ if (-not (Test-Path $distDir)) {
 
 $OutPath = Join-Path $distDir $Out
 
+# 获取版本号
+$Version = git describe --tags --always --dirty 2>$null
+if (-not $Version) { $Version = "dev" }
+
 Write-Host "Installing modules..."
 go mod tidy
 
+$Ldflags = "-X 'main.Version=$Version' -s -w"
+
 if ($Gui) {
-    Write-Host "Building GUI exe -> $OutPath (windowsgui)"
-    $cmd = "go build -v -ldflags `"-H=windowsgui`" -o `"$OutPath`" $Pkg"
+    Write-Host "Building GUI exe -> $OutPath (windowsgui) version=$Version"
+    $cmd = "go build -v -ldflags `"$Ldflags -H=windowsgui`" -o `"$OutPath`" $Pkg"
 } else {
-    Write-Host "Building console exe -> $OutPath"
-    $cmd = "go build -v -o `"$OutPath`" $Pkg"
+    Write-Host "Building console exe -> $OutPath version=$Version"
+    $cmd = "go build -v -ldflags `"$Ldflags`" -o `"$OutPath`" $Pkg"
 }
 
 Write-Host $cmd
