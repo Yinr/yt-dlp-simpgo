@@ -7,7 +7,12 @@ require (
 	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627
 )
 
-require github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
+require (
+	github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
+	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+)
 
 require (
 	fyne.io/systray v1.11.0 // indirect
