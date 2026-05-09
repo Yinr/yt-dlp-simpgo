@@ -5,16 +5,17 @@
 ## 项目结构
 
 ```
-main.go          - 程序入口、UI 布局
+main.go          - 程序入口、主窗口 UI 布局、启动时 yt-dlp 版本检测提示
 config.go        - AppConfig / YTDLPConfig 类型定义、INI+conf 配置持久化、go:embed 嵌入默认资源
 config_test.go   - 配置解析/保存的单元测试
 download.go      - 下载辅助函数：findYtDlp、readPipe、startDownload、wireUpdateBtn
 settings.go      - 设置对话框 UI
 yt_dlp.go        - 下载/更新/版本检测 yt-dlp（HTTP 代理、进度回调、GitHub API）
-version.go       - 版本号和仓库地址常量
-utils/           - 平台相关辅助函数（execCmd_win.go, execCmd_nowin.go）
-res/             - 嵌入资源（图标、默认配置文件）
+version.go       - 程序版本号和仓库地址常量（Version 由 ldflags 注入）
+utils/           - 平台相关辅助函数及测试（execCmd_win.go, execCmd_nowin.go, execCmd_test.go）
+res/             - 嵌入资源（窗口图标、Windows exe 图标、默认配置文件）
 dist/            - 构建产物输出目录
+rsrc_windows_*.syso - Windows exe 图标资源中间产物，构建时自动生成，不提交
 ```
 
 ## 构建命令
@@ -30,6 +31,8 @@ make install-deps          # go mod tidy
 .\build.ps1                # PowerShell 构建 → dist/
 .\build.ps1 -Gui           # PowerShell GUI 构建 → dist/
 ```
+
+Windows GUI 构建会先用 `res/icon.ico` 生成 `rsrc_windows_amd64.syso`，从而把文件图标嵌入 exe；`rsrc_windows_*.syso` 是中间产物，已在 `.gitignore` 中忽略。若 `dist/yt-dlp-simpgo.exe` 正在运行，Windows 会锁定文件，重新构建前应先关闭旧进程。
 
 ## 测试
 
@@ -73,6 +76,7 @@ go test -cover ./...                     # 查看测试覆盖率
 ### 嵌入资源
 - 使用 `//go:embed` 嵌入静态资源（图标、默认配置文件）
 - 嵌入指令放在 `config.go` 中，与对应的 `var` 声明放在一起
+- Windows exe 文件图标不由 `a.SetIcon()` 控制，需通过 `rsrc_windows_*.syso` 在构建期嵌入
 
 ### 格式化
 - 使用 `gofmt`（tab 缩进，标准 Go 格式）

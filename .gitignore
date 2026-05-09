@@ -6,6 +6,7 @@
 # 构建产物
 dist/
 rsrc.syso
+rsrc_windows_*.syso
 
 # 下载的依赖
 yt-dlp.exe

@@ -111,47 +111,44 @@ func showSettingsDialog(w fyne.Window, appCfg *AppConfig, ytdlpCfg *YTDLPConfig,
 	})
 
 	appSettingsContent := container.NewVBox(
-		container.NewPadded(widget.NewCard("下载目录", "", container.NewBorder(nil, nil, chooseDirBtn, outputDirEntry, nil))),
-		container.NewPadded(widget.NewCard("下载代理（用于下载/更新 yt-dlp）", "", downloadProxyEntry)),
-		container.NewPadded(widget.NewCard("yt-dlp 自定义下载 URL", "", ytDlpURLEntry)),
-		layout.NewSpacer(),
+		widget.NewCard("下载目录", "", container.NewBorder(nil, nil, nil, chooseDirBtn, outputDirEntry)),
+		widget.NewCard("下载代理（用于下载/更新 yt-dlp）", "", downloadProxyEntry),
+		widget.NewCard("yt-dlp 自定义下载 URL", "", ytDlpURLEntry),
 	)
-	appSettingsTab := container.NewScroll(appSettingsContent)
+	appSettingsTab := container.NewVScroll(appSettingsContent)
 
 	// Tab 2: yt-dlp Basic Settings
 	basicSettingsContent := container.NewVBox(
-		container.NewPadded(widget.NewCard("代理设置", "", container.NewVBox(
+		widget.NewCard("代理设置", "", container.NewVBox(
 			useProxyCheck,
 			widget.NewLabel("代理地址："),
-			container.NewHBox(proxyAddressEntry, syncProxyBtn),
-		))),
-		container.NewPadded(widget.NewCard("字幕设置", "", container.NewVBox(
+			container.NewBorder(nil, nil, nil, syncProxyBtn, proxyAddressEntry),
+		)),
+		widget.NewCard("字幕设置", "", container.NewVBox(
 			writeSubsCheck,
 			widget.NewLabel("字幕语言："),
 			subLangsEntry,
 			embedSubsCheck,
-		))),
-		container.NewPadded(widget.NewCard("其他选项", "", container.NewVBox(
+		)),
+		widget.NewCard("其他选项", "", container.NewVBox(
 			embedChaptersCheck,
 			splitChaptersCheck,
 			embedMetadataCheck,
 			container.NewVBox(widget.NewLabel("输出格式："), mergeFormatSelect),
-		))),
-		layout.NewSpacer(),
+		)),
 	)
-	basicSettingsTab := container.NewScroll(basicSettingsContent)
+	basicSettingsTab := container.NewVScroll(basicSettingsContent)
 
 	// Tab 3: yt-dlp Advanced Settings
-	extraArgsEntry.SetMinRowsVisible(8)
+	extraArgsEntry.SetMinRowsVisible(12)
 	advancedSettingsContent := container.NewVBox(
-		container.NewPadded(widget.NewCard("额外参数", "", container.NewVBox(
+		widget.NewCard("额外参数", "", container.NewVBox(
 			widget.NewLabel("输入其他 yt-dlp 命令行参数："),
 			widget.NewLabel("每行一个参数，支持注释"),
 			extraArgsEntry,
-		))),
-		layout.NewSpacer(),
+		)),
 	)
-	advancedSettingsTab := container.NewScroll(advancedSettingsContent)
+	advancedSettingsTab := container.NewVScroll(advancedSettingsContent)
 
 	// Create tabs
 	tabs := container.NewAppTabs(
@@ -166,16 +163,16 @@ func showSettingsDialog(w fyne.Window, appCfg *AppConfig, ytdlpCfg *YTDLPConfig,
 
 	// Create dialog content - use border layout so tabs take available space
 	content := container.NewBorder(
-		tabs,
+		nil,
 		container.NewPadded(
 			container.NewHBox(layout.NewSpacer(), cancelBtn, saveBtn),
 		),
-		nil, nil, nil,
+		nil, nil, tabs,
 	)
 
 	// Create and show dialog
-	dlg := dialog.NewCustom("设置", "", content, w)
-	dlg.Resize(fyne.NewSize(750, 700))
+	dlg := dialog.NewCustomWithoutButtons("设置", content, w)
+	dlg.Resize(fyne.NewSize(920, 820))
 
 	// Now set button handlers (after dialog is created)
 	cancelBtn.OnTapped = func() {

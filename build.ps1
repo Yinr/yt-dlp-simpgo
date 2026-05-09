@@ -32,6 +32,11 @@ go mod tidy
 $Ldflags = "-X 'main.Version=$Version' -s -w"
 
 if ($Gui) {
+    Write-Host "Generating Windows icon resource..."
+    Remove-Item -LiteralPath "rsrc.syso" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "rsrc_windows_amd64.syso" -Force -ErrorAction SilentlyContinue
+    go run github.com/akavel/rsrc@latest -ico "res/icon.ico" -arch amd64 -o "rsrc_windows_amd64.syso"
+
     Write-Host "Building GUI exe -> $OutPath (windowsgui) version=$Version"
     $cmd = "go build -v -ldflags `"$Ldflags -H=windowsgui`" -o `"$OutPath`" $Pkg"
 } else {

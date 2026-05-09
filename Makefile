@@ -21,6 +21,8 @@ build: ## 构建项目
 
 build-gui: ## 构建Windows GUI版本
 	mkdir -p $(DIST)
+	rm -f rsrc.syso rsrc_windows_*.syso
+	go run github.com/akavel/rsrc@latest -ico res/icon.ico -arch amd64 -o rsrc_windows_amd64.syso
 	GOOS=windows go build -ldflags="$(LDFLAGS) -H=windowsgui" -o $(DIST)/$(PROJECT_NAME)-windows-gui.exe .
 
 clean: ## 清理构建产物
@@ -28,7 +30,10 @@ clean: ## 清理构建产物
 
 release: clean ## 构建发布版本
 	mkdir -p $(DIST)
+	rm -f rsrc.syso rsrc_windows_*.syso
+	go run github.com/akavel/rsrc@latest -ico res/icon.ico -arch amd64 -o rsrc_windows_amd64.syso
 	GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS) -H=windowsgui" -o $(DIST)/$(PROJECT_NAME)-windows-amd64.exe .
+	rm -f rsrc_windows_*.syso
 	GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(DIST)/$(PROJECT_NAME)-linux-amd64 .
 	GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(DIST)/$(PROJECT_NAME)-darwin-amd64 .
 	GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(DIST)/$(PROJECT_NAME)-darwin-arm64 .
