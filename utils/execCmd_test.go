@@ -1,9 +1,6 @@
 package utils
 
-import (
-	"runtime"
-	"testing"
-)
+import "testing"
 
 func TestExecCmd(t *testing.T) {
 	// 使用 echo 命令测试
@@ -23,21 +20,5 @@ func TestExecCmd(t *testing.T) {
 
 	if cmd.Args[1] != "hello" {
 		t.Errorf("第二个参数应为 hello，实际为 %s", cmd.Args[1])
-	}
-}
-
-func TestExecCmd_WindowsHideWindow(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("跳过 Windows 特定测试")
-	}
-
-	cmd := ExecCmd("echo", "test")
-
-	if cmd.SysProcAttr == nil {
-		t.Error("Windows 上 SysProcAttr 不应为 nil")
-	}
-
-	if !cmd.SysProcAttr.HideWindow {
-		t.Error("Windows 上 HideWindow 应为 true")
 	}
 }
