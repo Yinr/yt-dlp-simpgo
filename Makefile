@@ -7,7 +7,7 @@ GOARCH ?= $(shell go env GOARCH)
 LDFLAGS := -X 'main.Version=$(VERSION)' -s -w
 DIST := dist
 
-.PHONY: build build-gui clean release test help
+.PHONY: build build-gui clean clean-runtime clean-all release test help
 
 help: ## 显示帮助信息
 	@echo "Usage: make [target]"
@@ -27,6 +27,13 @@ build-gui: ## 构建Windows GUI版本
 
 clean: ## 清理构建产物
 	rm -rf $(DIST)
+	rm -f rsrc.syso rsrc_windows_*.syso
+
+clean-runtime: ## 清理运行时文件
+	rm -f yt-dlp-simpgo.ini yt-dlp.conf yt-dlp yt-dlp.exe
+	rm -rf 下载
+
+clean-all: clean clean-runtime ## 清理构建产物和运行时文件
 
 release: clean ## 构建发布版本
 	mkdir -p $(DIST)

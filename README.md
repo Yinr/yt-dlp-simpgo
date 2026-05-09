@@ -83,6 +83,12 @@ make release
 # 清理 dist/
 make clean
 
+# 清理运行时文件（配置、下载目录、yt-dlp）
+make clean-runtime
+
+# 清理构建产物和运行时文件
+make clean-all
+
 # 显示帮助信息
 make help
 ```

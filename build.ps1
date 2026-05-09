@@ -5,15 +5,54 @@
   .\build.ps1                # 构建控制台版本
   .\build.ps1 -Gui           # 构建 Windows GUI 版本（隐藏控制台）
   .\build.ps1 -Out myapp.exe # 指定输出文件名
+  .\build.ps1 -Clean         # 清理构建产物
+  .\build.ps1 -CleanRuntime  # 清理运行时文件
+  .\build.ps1 -CleanAll      # 清理构建产物和运行时文件
 #>
 
 param(
     [switch]$Gui,
+    [switch]$Clean,
+    [switch]$CleanRuntime,
+    [switch]$CleanAll,
     [string]$Out = "yt-dlp-simpgo.exe",
     [string]$Pkg = "."
 )
 
 Push-Location $PSScriptRoot
+
+function Remove-BuildArtifacts {
+    Remove-Item -LiteralPath "dist" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "rsrc.syso" -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "rsrc_windows_*.syso" -Force -ErrorAction SilentlyContinue
+}
+
+function Remove-RuntimeFiles {
+    Remove-Item -LiteralPath "yt-dlp-simpgo.ini" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "yt-dlp.conf" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "yt-dlp.exe" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "yt-dlp" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "下载" -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+if ($CleanAll) {
+    Remove-BuildArtifacts
+    Remove-RuntimeFiles
+    Pop-Location
+    return
+}
+
+if ($Clean) {
+    Remove-BuildArtifacts
+    Pop-Location
+    return
+}
+
+if ($CleanRuntime) {
+    Remove-RuntimeFiles
+    Pop-Location
+    return
+}
 
 $distDir = "dist"
 if (-not (Test-Path $distDir)) {
