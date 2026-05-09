@@ -5,11 +5,14 @@
 ## 项目结构
 
 ```
-main.go          - 程序入口、主窗口 UI 布局、启动时 yt-dlp 版本检测提示
+main.go          - 程序入口、主窗口 UI 布局、启动时程序自身和 yt-dlp 版本检测提示
 config.go        - AppConfig / YTDLPConfig 类型定义、INI+conf 配置持久化、go:embed 嵌入默认资源
 config_test.go   - 配置解析/保存的单元测试
 download.go      - 下载辅助函数：findYtDlp、readPipe、startDownload、wireUpdateBtn
+format.go        - 通用格式化辅助函数（如自动单位文件大小显示）
 settings.go      - 设置对话框 UI
+self_update.go   - 程序自身更新检测、下载、校验、替换和重启
+self_update_test.go - 程序自身更新相关单元测试
 yt_dlp.go        - 下载/更新/版本检测 yt-dlp（HTTP 代理、进度回调、GitHub API）
 version.go       - 程序版本号和仓库地址常量（Version 由 ldflags 注入）
 utils/           - 平台相关辅助函数及测试（execCmd_win.go, execCmd_nowin.go, execCmd_test.go）

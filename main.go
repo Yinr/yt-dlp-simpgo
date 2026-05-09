@@ -188,6 +188,66 @@ func main() {
 	appendLog := func(text string) { addLog(text, false) }
 	rewriteLog := func(text string) { addLog(text, true) }
 
+	go func() {
+		info, err := CheckAppUpdate(Version, appCfg.DownloadProxy)
+		if err != nil || info == nil {
+			return
+		}
+
+		fyne.Do(func() {
+			appendLog(fmt.Sprintf("程序有新版本: %s -> %s", info.CurrentVersion, info.LatestVersion))
+			dialog.ShowConfirm("程序更新可用",
+				fmt.Sprintf("检测到 yt-dlp-simpgo 新版本 %s（当前 %s），是否立即更新并重启？", info.LatestVersion, info.CurrentVersion),
+				func(ok bool) {
+					if !ok {
+						return
+					}
+					go func() {
+						appendLog("正在下载程序更新: " + info.AssetName)
+						var lastProgress string
+						var lastPct = -1
+						onProgress := func(received, total int64) {
+							var progress string
+							var pct int
+							if total > 0 {
+								pct = int(float64(received) * 100.0 / float64(total))
+								progress = fmt.Sprintf("下载程序更新: %d%% (%s/%s)", pct, formatBytes(received), formatBytes(total))
+							} else {
+								progress = fmt.Sprintf("下载程序更新: %s", formatBytes(received))
+							}
+							if pct != lastPct || progress != lastProgress {
+								lastPct = pct
+								lastProgress = progress
+								fyne.Do(func() { rewriteLog(progress) })
+							}
+						}
+
+						updatePath, err := DownloadAppUpdate(info, appCfg.DownloadProxy, onProgress)
+						if err != nil {
+							fyne.Do(func() {
+								appendLog("程序更新下载失败: " + err.Error())
+								dialog.ShowError(err, w)
+							})
+							return
+						}
+
+						if err := InstallAppUpdateAndRestart(updatePath); err != nil {
+							fyne.Do(func() {
+								appendLog("程序更新安装失败: " + err.Error())
+								dialog.ShowError(err, w)
+							})
+							return
+						}
+
+						fyne.Do(func() {
+							appendLog("程序更新已安装，正在重启")
+							a.Quit()
+						})
+					}()
+				}, w)
+		})
+	}()
+
 	// 根据 yt-dlp 是否存在设置按钮行为
 	ytDlpPath, found := findYtDlp(exeDir)
 	if found {
@@ -236,9 +296,9 @@ func main() {
 					var pct int
 					if total > 0 {
 						pct = int(float64(received) * 100.0 / float64(total))
-						progress = fmt.Sprintf("下载 yt-dlp: %d%% (%d/%d)", pct, received, total)
+						progress = fmt.Sprintf("下载 yt-dlp: %d%% (%s/%s)", pct, formatBytes(received), formatBytes(total))
 					} else {
-						progress = fmt.Sprintf("下载 yt-dlp: %d bytes", received)
+						progress = fmt.Sprintf("下载 yt-dlp: %s", formatBytes(received))
 					}
 					if (pct != lastPct) && (progress != lastProgress) {
 						lastPct = pct

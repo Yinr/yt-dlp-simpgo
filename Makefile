@@ -30,7 +30,7 @@ clean: ## 清理构建产物
 	rm -f rsrc.syso rsrc_windows_*.syso
 
 clean-runtime: ## 清理运行时文件
-	rm -f yt-dlp-simpgo.ini yt-dlp.conf yt-dlp yt-dlp.exe
+	rm -f yt-dlp-simpgo.ini yt-dlp.conf yt-dlp yt-dlp.exe .yt-dlp-simpgo-update-* .yt-dlp-simpgo-update.ps1
 	rm -rf 下载
 
 clean-all: clean clean-runtime ## 清理构建产物和运行时文件

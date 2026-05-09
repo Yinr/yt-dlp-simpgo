@@ -2,6 +2,8 @@
 /yt-dlp-simpgo.ini
 /yt-dlp.conf
 /下载/
+.yt-dlp-simpgo-update-*
+.yt-dlp-simpgo-update.ps1
 
 # 构建产物
 dist/

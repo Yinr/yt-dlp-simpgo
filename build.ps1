@@ -32,6 +32,8 @@ function Remove-RuntimeFiles {
     Remove-Item -LiteralPath "yt-dlp.conf" -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "yt-dlp.exe" -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "yt-dlp" -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path ".yt-dlp-simpgo-update-*" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath ".yt-dlp-simpgo-update.ps1" -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "下载" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
