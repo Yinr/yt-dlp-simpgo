@@ -69,7 +69,7 @@ jobs:
           OUTPUT=dist/${{ env.EXECUTABLE }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
           
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            go run github.com/akavel/rsrc@latest -ico res/icon.ico -arch ${{ matrix.goarch }} -o rsrc_windows_${{ matrix.goarch }}.syso
+            go run github.com/akavel/rsrc@v0.10.2 -ico res/icon.ico -arch ${{ matrix.goarch }} -o rsrc_windows_${{ matrix.goarch }}.syso
             CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
               go build -o "$OUTPUT" -ldflags "$LDFLAGS"
           else

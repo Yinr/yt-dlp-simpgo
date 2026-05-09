@@ -104,9 +104,11 @@ func startDownload(exePath string, url string, outputDir string, exeDir string,
 			actualOut = filepath.Join(exeDir, actualOut)
 		}
 		outTemplate := filepath.Join(actualOut, "%(title)s.%(ext)s")
+		confPath := filepath.Join(exeDir, YTDLPConfName)
 		appendLog("使用输出目录: " + actualOut)
-		cmd := utils.ExecCmd(exePath, "-o", outTemplate, url)
-		cmd.Dir = filepath.Dir(exePath)
+		appendLog("使用配置文件: " + confPath)
+		cmd := utils.ExecCmd(exePath, "--config-location", confPath, "-o", outTemplate, url)
+		cmd.Dir = exeDir
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {

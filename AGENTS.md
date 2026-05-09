@@ -32,7 +32,7 @@ make install-deps          # go mod tidy
 .\build.ps1 -Gui           # PowerShell GUI 构建 → dist/
 ```
 
-Windows GUI 构建会先用 `res/icon.ico` 生成 `rsrc_windows_amd64.syso`，从而把文件图标嵌入 exe；`rsrc_windows_*.syso` 是中间产物，已在 `.gitignore` 中忽略。若 `dist/yt-dlp-simpgo.exe` 正在运行，Windows 会锁定文件，重新构建前应先关闭旧进程。
+Windows GUI 构建会先用固定版本的 `github.com/akavel/rsrc@v0.10.2` 和 `res/icon.ico` 生成 `rsrc_windows_amd64.syso`，从而把文件图标嵌入 exe；`rsrc_windows_*.syso` 是中间产物，已在 `.gitignore` 中忽略。若 `dist/yt-dlp-simpgo.exe` 正在运行，Windows 会锁定文件，重新构建前应先关闭旧进程。
 
 ## 测试
 
