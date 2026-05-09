@@ -13,13 +13,9 @@ import (
 	"yinr.cc/yt-dlp-simpgo/utils"
 )
 
-// DownloadYtDlp downloads the yt-dlp binary into destDir and returns the saved path.
-// DownloadYtDlpWithProgress downloads yt-dlp and calls onProgress(received, total)
-// periodically. total may be -1 if unknown.
-// DownloadYtDlpWithProgress downloads yt-dlp and calls onProgress(received, total)
-// periodically. total may be -1 if unknown. If downloadProxy is non-empty it
-// will be used as the HTTP(S) proxy. If ytDlpURL is non-empty it will be used
-// instead of the default GitHub URL.
+// DownloadYtDlpWithProgress 下载 yt-dlp 并定期调用 onProgress(received, total)。
+// total 为 -1 时表示未知。downloadProxy 非空时用作 HTTP(S) 代理。
+// ytDlpURL 非空时替换默认的 GitHub 下载地址。
 func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL string, onProgress func(received, total int64)) (string, error) {
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return "", fmt.Errorf("无法创建目录: %w", err)
@@ -32,7 +28,6 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 	}
 	outPath := filepath.Join(destDir, exeName)
 
-	// allow custom URL override
 	if ytDlpURL != "" {
 		urlStr = ytDlpURL
 	}
@@ -49,12 +44,7 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 	if err != nil {
 		return "", fmt.Errorf("下载请求失败: %w", err)
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			// Just log the error since we can't return it
-			fmt.Printf("警告: 无法关闭响应体: %v\n", closeErr)
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("下载失败: %s", resp.Status)
@@ -66,9 +56,7 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 	if err != nil {
 		return "", fmt.Errorf("无法创建临时文件: %w", err)
 	}
-	defer f.Close()
 
-	// copy with progress reporting
 	var written int64
 	buf := make([]byte, 32*1024)
 	for {
@@ -76,6 +64,7 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 		if n > 0 {
 			wn, werr := f.Write(buf[:n])
 			if werr != nil {
+				_ = f.Close()
 				_ = os.Remove(tmp)
 				return "", fmt.Errorf("写入文件失败: %w", werr)
 			}
@@ -88,39 +77,31 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 			if rerr == io.EOF {
 				break
 			}
+			_ = f.Close()
 			_ = os.Remove(tmp)
 			return "", fmt.Errorf("读取响应失败: %w", rerr)
 		}
 	}
 
-	// make sure file is closed before renaming on Windows (prevents "file in use")
+	// Windows 上必须先关闭文件再重命名，否则会报"文件被占用"
 	if err := f.Close(); err != nil {
 		_ = os.Remove(tmp)
 		return "", fmt.Errorf("关闭文件失败: %w", err)
 	}
 
-	// Try to rename tmp -> outPath, with retries. On Windows this can fail
-	// if the target exists and is locked by another process (e.g. antivirus
-	// scanning or running executable). Retry a few times and attempt to
-	// remove the existing target if present between attempts.
+	// Windows 上目标文件可能被其他进程锁定（杀毒扫描等），多次重试
 	var renameErr error
-	for range 6 {
+	for i := 0; i < 6; i++ {
 		renameErr = os.Rename(tmp, outPath)
 		if renameErr == nil {
 			break
 		}
-		// if target exists, try to remove it and retry
 		if _, statErr := os.Stat(outPath); statErr == nil {
 			_ = os.Remove(outPath)
-			// small pause before retrying
-			time.Sleep(200 * time.Millisecond)
-			continue
 		}
-		// otherwise pause and retry
 		time.Sleep(200 * time.Millisecond)
 	}
 	if renameErr != nil {
-		// final cleanup: try to remove tmp to avoid leaving partial file
 		_ = os.Remove(tmp)
 		return "", fmt.Errorf("重命名文件失败: %w", renameErr)
 	}
@@ -133,15 +114,10 @@ func DownloadYtDlpWithProgress(destDir string, downloadProxy string, ytDlpURL st
 	return outPath, nil
 }
 
-// Compatibility wrapper without progress callback
-func DownloadYtDlp(destDir string) (string, error) {
-	return DownloadYtDlpWithProgress(destDir, "", "", nil)
-}
-
-// UpdateYtDlp runs the existing yt-dlp executable with --update and returns its combined output.
-// If downloadProxy is provided it will be injected into the command environment as HTTP_PROXY/HTTPS_PROXY.
+// UpdateYtDlp 运行 yt-dlp --update 并返回输出。
+// downloadProxy 非空时注入 HTTP_PROXY/HTTPS_PROXY 环境变量。
 func UpdateYtDlp(exePath string, downloadProxy string) (string, error) {
-	cmd, _ := utils.ExecCmd(exePath, "--update")
+	cmd := utils.ExecCmd(exePath, "--update")
 
 	if downloadProxy != "" {
 		env := os.Environ()

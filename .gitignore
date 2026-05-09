@@ -1,38 +1,37 @@
+# 运行时生成的配置文件
 /yt-dlp-simpgo.ini
 /yt-dlp.conf
-/下载
-*.exe
-*.zip
-*.tar.gz
-dist/
+/下载/
 
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# 构建产物
+dist/
+rsrc.syso
+
+# 下载的依赖
+yt-dlp.exe
+yt-dlp
+
+# 二进制文件
+*.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# 测试产物
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
 coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
+# Go workspace
 go.work
 go.work.sum
-# env file
+
+# 环境变量
 .env
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# 编辑器/IDE
+.idea/
+.vscode/

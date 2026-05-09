@@ -1,10 +1,10 @@
 <#
-Simple build helper for this project.
+构建脚本，输出到 dist/ 目录。
 
-Usage:
-  .\build.ps1                # build normal executable
-  .\build.ps1 -Gui          # build windows GUI (adds -ldflags "-H=windowsgui")
-  .\build.ps1 -Out out.exe  # specify output name
+用法:
+  .\build.ps1                # 构建控制台版本
+  .\build.ps1 -Gui           # 构建 Windows GUI 版本（隐藏控制台）
+  .\build.ps1 -Out myapp.exe # 指定输出文件名
 #>
 
 param(
@@ -15,16 +15,22 @@ param(
 
 Push-Location $PSScriptRoot
 
+$distDir = "dist"
+if (-not (Test-Path $distDir)) {
+    New-Item -ItemType Directory -Path $distDir | Out-Null
+}
+
+$OutPath = Join-Path $distDir $Out
+
 Write-Host "Installing modules..."
 go mod tidy
 
-$argsList = @()
 if ($Gui) {
-    Write-Host "Building GUI exe (windowsgui)..."
-    $cmd = "go build -v -ldflags `"-H=windowsgui`" -o `"$Out`" $Pkg"
+    Write-Host "Building GUI exe -> $OutPath (windowsgui)"
+    $cmd = "go build -v -ldflags `"-H=windowsgui`" -o `"$OutPath`" $Pkg"
 } else {
-    Write-Host "Building console exe..."
-    $cmd = "go build -v -o `"$Out`" $Pkg"
+    Write-Host "Building console exe -> $OutPath"
+    $cmd = "go build -v -o `"$OutPath`" $Pkg"
 }
 
 Write-Host $cmd

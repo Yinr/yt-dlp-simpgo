@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 package utils
 
@@ -8,13 +7,8 @@ import (
 	"syscall"
 )
 
-func ExecCmd(exePath string, arg ...string) (*exec.Cmd, error) {
+func ExecCmd(exePath string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(exePath, arg...)
-
-	// hide console window on Windows (affects child process window)
-	// if runtime.GOOS == "windows" {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	// }
-
-	return cmd, nil
+	return cmd
 }
