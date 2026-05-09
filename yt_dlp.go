@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"yinr.cc/yt-dlp-simpgo/utils"
@@ -132,4 +134,72 @@ func UpdateYtDlp(exePath string, downloadProxy string) (string, error) {
 		return string(out), fmt.Errorf("更新失败: %w", err)
 	}
 	return string(out), nil
+}
+
+// GetYtDlpVersion 获取本地 yt-dlp 版本。
+func GetYtDlpVersion(exePath string) (string, error) {
+	cmd := utils.ExecCmd(exePath, "--version")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("获取版本失败: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// GitHubRelease 用于解析 GitHub API 响应。
+type GitHubRelease struct {
+	TagName string `json:"tag_name"`
+}
+
+// GetLatestYtDlpVersion 从 GitHub API 获取最新版本号。
+func GetLatestYtDlpVersion(downloadProxy string) (string, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	if downloadProxy != "" {
+		proxyURL, perr := url.Parse(downloadProxy)
+		if perr == nil {
+			client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
+		}
+	}
+
+	resp, err := client.Get("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
+	if err != nil {
+		return "", fmt.Errorf("请求 GitHub API 失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("GitHub API 返回错误: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	var release GitHubRelease
+	if err := json.Unmarshal(body, &release); err != nil {
+		return "", fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	return release.TagName, nil
+}
+
+// CheckYtDlpUpdate 检查是否有新版本，返回 (当前版本, 最新版本, 是否需要更新, 错误)。
+func CheckYtDlpUpdate(exePath string, downloadProxy string) (current, latest string, needUpdate bool, err error) {
+	current, err = GetYtDlpVersion(exePath)
+	if err != nil {
+		return "", "", false, err
+	}
+
+	latest, err = GetLatestYtDlpVersion(downloadProxy)
+	if err != nil {
+		return current, "", false, err
+	}
+
+	// 简单比较：去除可能的 v 前缀后比较
+	currentClean := strings.TrimPrefix(current, "v")
+	latestClean := strings.TrimPrefix(latest, "v")
+
+	needUpdate = currentClean != latestClean
+	return current, latest, needUpdate, nil
 }

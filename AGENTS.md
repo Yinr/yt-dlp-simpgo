@@ -7,9 +7,10 @@
 ```
 main.go          - 程序入口、UI 布局
 config.go        - AppConfig / YTDLPConfig 类型定义、INI+conf 配置持久化、go:embed 嵌入默认资源
+config_test.go   - 配置解析/保存的单元测试
 download.go      - 下载辅助函数：findYtDlp、readPipe、startDownload、wireUpdateBtn
 settings.go      - 设置对话框 UI
-yt_dlp.go        - 下载/更新 yt-dlp 二进制文件（HTTP 代理、进度回调）
+yt_dlp.go        - 下载/更新/版本检测 yt-dlp（HTTP 代理、进度回调、GitHub API）
 version.go       - 版本号和仓库地址常量
 utils/           - 平台相关辅助函数（execCmd_win.go, execCmd_nowin.go）
 res/             - 嵌入资源（图标、默认配置文件）
@@ -40,7 +41,7 @@ go test -v -count=1 ./...               # 强制重新运行（跳过缓存）
 go test -cover ./...                     # 查看测试覆盖率
 ```
 
-目前项目中尚无测试文件。添加测试时，请在被测代码同目录下创建 `*_test.go` 文件（例如根目录下 `config_test.go`，`utils/` 下 `execCmd_test.go`）。
+添加测试时，请在被测代码同目录下创建 `*_test.go` 文件（例如根目录下 `config_test.go`，`utils/` 下 `execCmd_test.go`）。
 
 ## 代码风格
 

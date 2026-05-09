@@ -201,6 +201,27 @@ func main() {
 			startDownload(ytDlpPath, urlStr, appCfg.OutputDir, exeDir, &runningMu, &running, appendLog)
 		}
 		wireUpdateBtn(updateBtn, ytDlpPath, appCfg.DownloadProxy, appendLog)
+
+		// 后台检查 yt-dlp 版本
+		go func() {
+			current, latest, needUpdate, err := CheckYtDlpUpdate(ytDlpPath, appCfg.DownloadProxy)
+			if err != nil {
+				// 版本检查失败不影响正常使用
+				return
+			}
+			if needUpdate {
+				fyne.Do(func() {
+					appendLog(fmt.Sprintf("yt-dlp 有新版本: %s -> %s", current, latest))
+					dialog.ShowConfirm("更新可用",
+						fmt.Sprintf("检测到 yt-dlp 新版本 %s（当前 %s），是否更新？", latest, current),
+						func(ok bool) {
+							if ok {
+								updateBtn.OnTapped()
+							}
+						}, w)
+				})
+			}
+		}()
 	} else {
 		updateBtn.Disable()
 		downloadBtn.SetText("下载 yt-dlp")
