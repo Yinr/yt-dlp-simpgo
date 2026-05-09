@@ -118,8 +118,30 @@ func LoadYTDLPConf(path string) (*YTDLPConfig, error) {
 			continue
 		}
 
+		// 处理注释形式的禁用选项（如 # --embed-chapters）
 		if strings.HasPrefix(line, "#") {
-			extraLines = append(extraLines, scanner.Text())
+			commentLine := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			commentParts := strings.Fields(commentLine)
+			if len(commentParts) > 0 {
+				switch commentParts[0] {
+				case "--write-subs":
+					cfg.WriteSubs = false
+				case "--embed-subs":
+					cfg.EmbedSubs = false
+				case "--embed-chapters":
+					cfg.EmbedChapters = false
+				case "--split-chapters":
+					cfg.SplitChapters = false
+				case "--embed-metadata":
+					cfg.EmbedMetadata = false
+				case "--merge-output-format":
+					// 注释形式的格式选项不处理，保持默认
+				default:
+					extraLines = append(extraLines, scanner.Text())
+				}
+			} else {
+				extraLines = append(extraLines, scanner.Text())
+			}
 			continue
 		}
 
