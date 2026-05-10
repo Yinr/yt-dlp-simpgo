@@ -237,14 +237,7 @@ func main() {
 						var lastProgress string
 						var lastPct = -1
 						onProgress := func(received, total int64) {
-							var progress string
-							var pct int
-							if total > 0 {
-								pct = int(float64(received) * 100.0 / float64(total))
-								progress = fmt.Sprintf("下载程序更新: %d%% (%s/%s)", pct, formatBytes(received), formatBytes(total))
-							} else {
-								progress = fmt.Sprintf("下载程序更新: %s", formatBytes(received))
-							}
+							progress, pct := formatProgress("下载程序更新", received, total)
 							if pct != lastPct || progress != lastProgress {
 								lastPct = pct
 								lastProgress = progress
@@ -329,14 +322,7 @@ func main() {
 				var lastProgress string
 				var lastPct = -1
 				onProgress := func(received, total int64) {
-					var progress string
-					var pct int
-					if total > 0 {
-						pct = int(float64(received) * 100.0 / float64(total))
-						progress = fmt.Sprintf("下载 yt-dlp: %d%% (%s/%s)", pct, formatBytes(received), formatBytes(total))
-					} else {
-						progress = fmt.Sprintf("下载 yt-dlp: %s", formatBytes(received))
-					}
+					progress, pct := formatProgress("下载 yt-dlp", received, total)
 					if (pct != lastPct) && (progress != lastProgress) {
 						lastPct = pct
 						lastProgress = progress

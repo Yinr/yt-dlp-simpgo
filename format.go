@@ -19,6 +19,14 @@ func formatBytes(n int64) string {
 	return fmt.Sprintf("%d B", n)
 }
 
+func formatProgress(prefix string, received, total int64) (string, int) {
+	if total > 0 {
+		pct := int(float64(received) * 100.0 / float64(total))
+		return fmt.Sprintf("%s: %d%% (%s/%s)", prefix, pct, formatBytes(received), formatBytes(total)), pct
+	}
+	return fmt.Sprintf("%s: %s", prefix, formatBytes(received)), 0
+}
+
 func logMarker(title string) string {
 	return "========== " + title + " =========="
 }
