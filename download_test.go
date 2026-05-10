@@ -38,15 +38,15 @@ func TestFriendlyYtDlpLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, rewriteLast, _, ok := friendlyYtDlpLine(tt.line)
-			if ok != tt.ok {
-				t.Fatalf("ok = %v, want %v", ok, tt.ok)
+			ev := friendlyYtDlpLine(tt.line)
+			if ev.Ok != tt.ok {
+				t.Fatalf("ok = %v, want %v", ev.Ok, tt.ok)
 			}
-			if got != tt.want {
-				t.Fatalf("text = %q, want %q", got, tt.want)
+			if ev.Text != tt.want {
+				t.Fatalf("text = %q, want %q", ev.Text, tt.want)
 			}
-			if rewriteLast != tt.rewriteLast {
-				t.Fatalf("rewriteLast = %v, want %v", rewriteLast, tt.rewriteLast)
+			if ev.RewriteLast != tt.rewriteLast {
+				t.Fatalf("rewriteLast = %v, want %v", ev.RewriteLast, tt.rewriteLast)
 			}
 		})
 	}

@@ -1,64 +1,19 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
-	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
 
 	"yinr.cc/yt-dlp-simpgo/utils"
 )
 
-type ProgressReporter struct {
-	AppendLog   func(string)
-	RewriteLog  func(string)
-	SetProgress func(status string, value float64)
-	Clear       func()
-}
-
-func (p ProgressReporter) appendLog(text string) {
-	if p.AppendLog != nil {
-		p.AppendLog(text)
-	}
-}
-
-func (p ProgressReporter) rewriteLog(text string) {
-	if p.RewriteLog != nil {
-		p.RewriteLog(text)
-	} else {
-		p.appendLog(text)
-	}
-}
-
-func (p ProgressReporter) setProgress(status string, value float64) {
-	if p.SetProgress != nil {
-		p.SetProgress(status, value)
-	}
-}
-
-func (p ProgressReporter) clear() {
-	if p.Clear != nil {
-		p.Clear()
-	}
-}
-
-var ytDlpDownloadProgressPattern = regexp.MustCompile(`^\[download\]\s+([0-9.]+)%\s+of\s+(.+?)(?:\s+at\s+(.+?))?(?:\s+ETA\s+(.+))?$`)
-
-// findYtDlp checks for yt-dlp in exeDir first, then PATH.
 func findYtDlp(exeDir string) (string, bool) {
 	exeName := "yt-dlp"
 	if runtime.GOOS == "windows" {
@@ -74,117 +29,6 @@ func findYtDlp(exeDir string) (string, bool) {
 	return "", false
 }
 
-func decodeProcessLine(line []byte) string {
-	out := line
-	if runtime.GOOS == "windows" && !utf8.Valid(line) {
-		if dec, _, derr := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), line); derr == nil {
-			out = dec
-		} else if dec2, _, derr2 := transform.Bytes(simplifiedchinese.GB18030.NewDecoder(), line); derr2 == nil {
-			out = dec2
-		}
-	}
-	return strings.TrimSpace(strings.TrimRight(string(out), "\r\n"))
-}
-
-func friendlyYtDlpLine(line string) (text string, rewriteLast bool, progress float64, ok bool) {
-	if line == "" {
-		return "", false, 0, false
-	}
-
-	lower := strings.ToLower(line)
-	if strings.Contains(line, "ERROR:") || strings.Contains(lower, "error:") {
-		return line, false, 0, true
-	}
-	if strings.Contains(line, "WARNING:") || strings.Contains(lower, "warning:") {
-		return line, false, 0, true
-	}
-
-	if matches := ytDlpDownloadProgressPattern.FindStringSubmatch(line); matches != nil {
-		percent := strings.TrimSpace(matches[1])
-		total := strings.TrimSpace(matches[2])
-		speed := strings.TrimSpace(matches[3])
-		eta := strings.TrimSpace(matches[4])
-
-		parts := []string{fmt.Sprintf("下载中: %s%%", percent)}
-		if total != "" {
-			parts = append(parts, "总大小 "+total)
-		}
-		if speed != "" {
-			parts = append(parts, "速度 "+speed)
-		}
-		if eta != "" {
-			parts = append(parts, "剩余 "+eta)
-		}
-		progressValue, _ := strconv.ParseFloat(percent, 64)
-		return strings.Join(parts, "，"), true, progressValue / 100, true
-	}
-
-	if strings.HasPrefix(line, "[download] Destination:") {
-		return "保存文件: " + strings.TrimSpace(strings.TrimPrefix(line, "[download] Destination:")), false, 0, true
-	}
-	if strings.HasPrefix(line, "[download] ") && strings.Contains(line, "has already been downloaded") {
-		return "文件已存在，跳过下载", false, 1, true
-	}
-	if strings.HasPrefix(line, "[download] Downloading item ") {
-		return strings.TrimPrefix(line, "[download] "), false, 0, true
-	}
-	if strings.HasPrefix(line, "[Merger]") {
-		return "正在合并音视频", false, 0.95, true
-	}
-	if strings.HasPrefix(line, "[ExtractAudio]") {
-		return "正在提取音频", false, 0.95, true
-	}
-	if strings.HasPrefix(line, "[EmbedSubtitle]") || strings.HasPrefix(line, "[EmbedThumbnail]") || strings.HasPrefix(line, "[Metadata]") {
-		return "正在写入附加信息", false, 0.97, true
-	}
-	if strings.HasPrefix(line, "[Fixup") {
-		return "正在修复媒体文件", false, 0.98, true
-	}
-	if strings.HasPrefix(line, "[info]") {
-		return "已获取视频信息", false, 0.05, true
-	}
-	if strings.HasPrefix(line, "[") && strings.Contains(line, "Downloading") {
-		return "正在解析视频信息", true, 0.02, true
-	}
-
-	return "", false, 0, false
-}
-
-// readPipe reads lines from r, decodes GBK on Windows if needed, and calls appendLog.
-func readPipe(r io.Reader, appendLog func(string)) {
-	br := bufio.NewReader(r)
-	for {
-		line, err := br.ReadBytes('\n')
-		if len(line) > 0 {
-			appendLog(decodeProcessLine(line))
-		}
-		if err != nil {
-			if err != io.EOF {
-				appendLog("读取子进程输出出错: " + err.Error())
-			}
-			break
-		}
-	}
-}
-
-func readYtDlpPipe(r io.Reader, reporter ProgressReporter) {
-	readPipe(r, func(line string) {
-		text, rewriteLast, progress, ok := friendlyYtDlpLine(line)
-		if !ok {
-			return
-		}
-		if progress >= 0 {
-			reporter.setProgress(text, progress)
-		}
-		if rewriteLast {
-			reporter.rewriteLog(text)
-		} else {
-			reporter.appendLog(text)
-		}
-	})
-}
-
-// wireUpdateBtn sets up the update button to run yt-dlp --update.
 func wireUpdateBtn(btn *widget.Button, exePath string, downloadProxy string, reporter ProgressReporter) {
 	btn.Enable()
 	btn.OnTapped = func() {
@@ -211,7 +55,6 @@ func wireUpdateBtn(btn *widget.Button, exePath string, downloadProxy string, rep
 	}
 }
 
-// startDownload launches a yt-dlp download in a goroutine.
 func startDownload(exePath string, url string, outputDir string, exeDir string,
 	runningMu *sync.Mutex, running *bool, reporter ProgressReporter) {
 
