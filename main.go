@@ -128,6 +128,8 @@ func main() {
 	logLabel := widget.NewLabelWithData(logBinding)
 	logLabel.Wrapping = fyne.TextWrapWord
 	logScroll := container.NewVScroll(logLabel)
+	progressLabel := widget.NewLabel("就绪")
+	progressBar := widget.NewProgressBar()
 
 	clearBtn := widget.NewButton("清空", func() {
 		entry.SetText("")
@@ -187,6 +189,31 @@ func main() {
 	}
 	appendLog := func(text string) { addLog(text, false) }
 	rewriteLog := func(text string) { addLog(text, true) }
+	setProgress := func(status string, value float64) {
+		fyne.Do(func() {
+			progressLabel.SetText(status)
+			if value < 0 {
+				progressBar.SetValue(0)
+				return
+			}
+			if value > 1 {
+				value = 1
+			}
+			progressBar.SetValue(value)
+		})
+	}
+	clearProgress := func() {
+		fyne.Do(func() {
+			progressLabel.SetText("就绪")
+			progressBar.SetValue(0)
+		})
+	}
+	reporter := ProgressReporter{
+		AppendLog:   appendLog,
+		RewriteLog:  rewriteLog,
+		SetProgress: setProgress,
+		Clear:       clearProgress,
+	}
 
 	go func() {
 		info, err := CheckAppUpdate(Version, appCfg.DownloadProxy)
@@ -195,6 +222,7 @@ func main() {
 		}
 
 		fyne.Do(func() {
+			appendLog(logMarker("程序更新可用"))
 			appendLog(fmt.Sprintf("程序有新版本: %s -> %s", info.CurrentVersion, info.LatestVersion))
 			dialog.ShowConfirm("程序更新可用",
 				fmt.Sprintf("检测到 yt-dlp-simpgo 新版本 %s（当前 %s），是否立即更新并重启？", info.LatestVersion, info.CurrentVersion),
@@ -203,7 +231,9 @@ func main() {
 						return
 					}
 					go func() {
+						appendLog(logMarker("开始下载程序更新"))
 						appendLog("正在下载程序更新: " + info.AssetName)
+						setProgress("正在下载程序更新", 0)
 						var lastProgress string
 						var lastPct = -1
 						onProgress := func(received, total int64) {
@@ -218,6 +248,7 @@ func main() {
 							if pct != lastPct || progress != lastProgress {
 								lastPct = pct
 								lastProgress = progress
+								setProgress(progress, float64(pct)/100)
 								fyne.Do(func() { rewriteLog(progress) })
 							}
 						}
@@ -225,6 +256,7 @@ func main() {
 						updatePath, err := DownloadAppUpdate(info, appCfg.DownloadProxy, onProgress)
 						if err != nil {
 							fyne.Do(func() {
+								appendLog(logMarker("程序更新下载失败"))
 								appendLog("程序更新下载失败: " + err.Error())
 								dialog.ShowError(err, w)
 							})
@@ -233,14 +265,17 @@ func main() {
 
 						if err := InstallAppUpdateAndRestart(updatePath); err != nil {
 							fyne.Do(func() {
+								appendLog(logMarker("程序更新安装失败"))
 								appendLog("程序更新安装失败: " + err.Error())
+								clearProgress()
 								dialog.ShowError(err, w)
 							})
 							return
 						}
 
 						fyne.Do(func() {
-							appendLog("程序更新已安装，正在重启")
+							appendLog(logMarker("程序更新已安装"))
+							appendLog("正在重启")
 							a.Quit()
 						})
 					}()
@@ -258,9 +293,9 @@ func main() {
 				dialog.ShowInformation("提示", "请输入一个有效的网址", w)
 				return
 			}
-			startDownload(ytDlpPath, urlStr, appCfg.OutputDir, exeDir, &runningMu, &running, appendLog)
+			startDownload(ytDlpPath, urlStr, appCfg.OutputDir, exeDir, &runningMu, &running, reporter)
 		}
-		wireUpdateBtn(updateBtn, ytDlpPath, appCfg.DownloadProxy, appendLog)
+		wireUpdateBtn(updateBtn, ytDlpPath, appCfg.DownloadProxy, reporter)
 
 		// 后台检查 yt-dlp 版本
 		go func() {
@@ -286,8 +321,10 @@ func main() {
 		updateBtn.Disable()
 		downloadBtn.SetText("下载 yt-dlp")
 		downloadBtn.OnTapped = func() {
+			appendLog(logMarker("开始下载 yt-dlp"))
 			appendLog("正在下载 yt-dlp 到: " + exeDir)
 			appendLog("")
+			setProgress("正在下载 yt-dlp", 0)
 			go func() {
 				var lastProgress string
 				var lastPct = -1
@@ -303,6 +340,11 @@ func main() {
 					if (pct != lastPct) && (progress != lastProgress) {
 						lastPct = pct
 						lastProgress = progress
+						if total > 0 {
+							setProgress(progress, float64(pct)/100)
+						} else {
+							setProgress(progress, 0)
+						}
 						fyne.Do(func() { rewriteLog(progress) })
 					}
 				}
@@ -310,12 +352,16 @@ func main() {
 				p, derr := DownloadYtDlpWithProgress(exeDir, appCfg.DownloadProxy, appCfg.YtDlpURL, onProgress)
 				if derr != nil {
 					fyne.Do(func() {
+						appendLog(logMarker("下载 yt-dlp 失败"))
 						appendLog("下载 yt-dlp 失败: " + derr.Error())
+						clearProgress()
 						dialog.ShowError(derr, w)
 					})
 					return
 				}
 				fyne.Do(func() {
+					setProgress("yt-dlp 下载完成", 1)
+					appendLog(logMarker("yt-dlp 下载完成"))
 					appendLog("已下载: " + p)
 					fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "已完成", Content: "yt-dlp 已下载"})
 					downloadBtn.SetText("开始下载")
@@ -325,9 +371,9 @@ func main() {
 							dialog.ShowInformation("提示", "请输入一个有效的网址", w)
 							return
 						}
-						startDownload(p, urlStr, appCfg.OutputDir, exeDir, &runningMu, &running, appendLog)
+						startDownload(p, urlStr, appCfg.OutputDir, exeDir, &runningMu, &running, reporter)
 					}
-					wireUpdateBtn(updateBtn, p, appCfg.DownloadProxy, appendLog)
+					wireUpdateBtn(updateBtn, p, appCfg.DownloadProxy, reporter)
 				})
 			}()
 		}
@@ -335,7 +381,8 @@ func main() {
 
 	entryRow := container.NewBorder(nil, nil, nil, clearBtn, entry)
 	buttons := container.NewHBox(setOutputBtn, widget.NewLabel("下载目录:"), linkContainer, layout.NewSpacer(), updateBtn, downloadBtn, settingsBtn, aboutBtn)
-	top := container.NewVBox(entryRow, buttons)
+	progressBox := container.NewVBox(progressLabel, progressBar)
+	top := container.NewVBox(entryRow, buttons, progressBox)
 	content := container.NewBorder(top, nil, nil, nil, logScroll)
 	w.SetContent(container.NewPadded(content))
 	w.ShowAndRun()

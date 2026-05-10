@@ -22,3 +22,11 @@ func TestFormatBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestLogMarker(t *testing.T) {
+	got := logMarker("下载完成")
+	want := "========== 下载完成 =========="
+	if got != want {
+		t.Fatalf("logMarker() = %q, want %q", got, want)
+	}
+}
