@@ -8,6 +8,7 @@ func TestFriendlyYtDlpLine(t *testing.T) {
 		line        string
 		want        string
 		rewriteLast bool
+		hasProgress bool
 		ok          bool
 	}{
 		{
@@ -15,6 +16,7 @@ func TestFriendlyYtDlpLine(t *testing.T) {
 			line:        "[download]  42.1% of 25.0MiB at 1.2MiB/s ETA 00:12",
 			want:        "下载中: 42.1%，总大小 25.0MiB，速度 1.2MiB/s，剩余 00:12",
 			rewriteLast: true,
+			hasProgress: true,
 			ok:          true,
 		},
 		{
@@ -47,6 +49,9 @@ func TestFriendlyYtDlpLine(t *testing.T) {
 			}
 			if ev.RewriteLast != tt.rewriteLast {
 				t.Fatalf("rewriteLast = %v, want %v", ev.RewriteLast, tt.rewriteLast)
+			}
+			if ev.HasProgress != tt.hasProgress {
+				t.Fatalf("hasProgress = %v, want %v", ev.HasProgress, tt.hasProgress)
 			}
 		})
 	}

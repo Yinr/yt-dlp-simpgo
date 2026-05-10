@@ -251,6 +251,7 @@ func main() {
 							fyne.Do(func() {
 								appendLog(logMarker("程序更新下载失败"))
 								appendLog("程序更新下载失败: " + err.Error())
+								clearProgress()
 								dialog.ShowError(err, w)
 							})
 							return
