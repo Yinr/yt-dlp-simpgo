@@ -43,16 +43,16 @@ jobs:
             goarch: amd64
             suffix: ".exe"
             ldflags: "-s -w -H=windowsgui"
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            suffix: ""
-            ldflags: "-s -w"
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-            suffix: ""
-            ldflags: "-s -w"
+          # - os: macos-latest
+          #   goos: darwin
+          #   goarch: amd64
+          #   suffix: ""
+          #   ldflags: "-s -w"
+          # - os: macos-latest
+          #   goos: darwin
+          #   goarch: arm64
+          #   suffix: ""
+          #   ldflags: "-s -w"
 
     runs-on: ${{ matrix.os }}
     env:
