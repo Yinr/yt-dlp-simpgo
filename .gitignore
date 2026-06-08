@@ -32,6 +32,9 @@ profile.cov
 go.work
 go.work.sum
 
+# 本地代理/编排状态
+/.omo/
+
 # 环境变量
 .env
 
