@@ -16,14 +16,14 @@ Scope: GitHub Actions and release automation only. Do not document app source in
   `gcc libgl1-mesa-dev xorg-dev libgtk-3-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev pkg-config`.
 - Windows cross-compilation on Ubuntu uses `gcc-mingw-w64-x86-64` with `CC=x86_64-w64-mingw32-gcc`.
 
-## BUILD MATRIX
+## ACTIVE BUILD MATRIX
 
 | OS     | GOOS    | GOARCH | Suffix | Notes                    |
 |--------|---------|--------|--------|--------------------------|
 | ubuntu | linux   | amd64  | none   | Native build             |
 | ubuntu | windows | amd64  | .exe   | CGO + mingw; GUI ldflags |
-| macos  | darwin  | amd64  | none   | Native build             |
-| macos  | darwin  | arm64  | none   | Native build             |
+
+- macOS release entries may exist in the workflow as commented examples only; they are not active release artifacts while commented out.
 
 - Ldflags: `-s -w` for all; Windows adds `-H=windowsgui`.
 - Version is injected at link time via `-X main.Version=${TAG}`.
@@ -42,5 +42,5 @@ Scope: GitHub Actions and release automation only. Do not document app source in
 
 ## ARTIFACTS
 
-- Executables: `yt-dlp-simpgo-{GOOS}-{GOARCH}{.exe}`
+- Executables: active matrix outputs only, currently `yt-dlp-simpgo-linux-amd64` and `yt-dlp-simpgo-windows-amd64.exe`
 - Checksums: `checksums.txt`
